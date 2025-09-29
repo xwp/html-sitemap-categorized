@@ -1,0 +1,27 @@
+
+{
+  "name": "xwp/html-sitemap-categorized",
+  "description": "Category-based HTML sitemap pages with efficient caching and a bundled template.",
+  "type": "wordpress-plugin",
+  "require": {
+      "php": ">=7.2",
+      "composer/installers": "~1.0"
+  },
+  "license": "GPL-2.0-or-later",
+  "authors": [
+      {
+          "name": "XWP",
+          "email": "technology@xwp.co"
+      }
+  ],
+  "support": {
+      "issues": "https://github.com/xwp/html-sitemap-categorized/issues",
+      "source": "https://github.com/xwp/html-sitemap-categorized"
+  },
+"repositories": [
+      {
+          "type": "vcs",
+          "url": "https://github.com/xwp/html-sitemap-categorized"
+      }
+  ]
+}
