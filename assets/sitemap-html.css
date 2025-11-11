@@ -74,8 +74,12 @@
 	font-size: 1rem;
 }
 
+.l-sitemap .c-sitemap__item--index .c-sitemap__item-list-item {
+  display: inline-block;
+}
+
 .l-sitemap .c-sitemap__item-list-item {
-	display: inline-block;
+	display: block;
 }
 
 .l-sitemap .c-sitemap__item-list-item a {
