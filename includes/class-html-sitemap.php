@@ -5,7 +5,7 @@ class HTML_Sitemap {
 	/**
 	 * Plugin version used for asset cache-busting.
 	 */
-	const VERSION = '1.0.0';
+	const VERSION = '1.0.1';
 
 	/**
 	 * Query variable name for storing the sitemap category.
