@@ -237,6 +237,17 @@ class HTML_Sitemap {
 	 * @return string The category name or empty string.
 	 */
 	public function get_category_name( $category_slug ) {
+		/**
+		 * Filters the displayed name for a sitemap category slug.
+		 *
+		 * @param string $name          Category name. Default empty allows fallback to taxonomy term.
+		 * @param string $category_slug Requested category slug.
+		 */
+		$filtered_name = apply_filters( 'html_sitemap_category_name', '', $category_slug );
+		if ( is_string( $filtered_name ) && '' !== $filtered_name ) { // @phpstan-ignore-line -- We're filtering, so checking just in case.
+			return $filtered_name;
+		}
+
 		$category = get_term_by( 'slug', $category_slug, 'category' );
 		return $category ? $category->name : '';
 	}
@@ -292,7 +303,7 @@ class HTML_Sitemap {
 	 * @param \WP_Post $post       Post object.
 	 */
 	public function handle_post_status_change( string $new_status, string $old_status, \WP_Post $post ): void {
-		if ( 'post' !== $post->post_type ) {
+		if ( ! in_array( $post->post_type, Utils::get_supported_post_types(), true ) ) {
 			return;
 		}
 
@@ -301,14 +312,43 @@ class HTML_Sitemap {
 			return;
 		}
 
+		$slugs = [];
+
 		// Get the deepest category it belongs to.
 		$category_slug = $this->get_category_slug( $post->ID );
-		if ( empty( $category_slug ) ) {
+		if ( ! empty( $category_slug ) ) {
+			$slugs[] = $category_slug;
+		}
+
+		/**
+		 * Filters additional cache slugs that should be regenerated for a post transition.
+		 *
+		 * @param string[] $slugs       Additional cache slugs to regenerate.
+		 * @param \WP_Post $post        Post object.
+		 * @param string   $new_status  New status.
+		 * @param string   $old_status  Previous status.
+		 */
+		$virtual_slugs = apply_filters( 'html_sitemap_virtual_category_slugs', [], $post, $new_status, $old_status );
+		if ( is_array( $virtual_slugs ) ) { // @phpstan-ignore-line -- We're filtering, so checking just in case.
+			foreach ( $virtual_slugs as $virtual_slug ) {
+				$virtual_slug = sanitize_title( (string) $virtual_slug );
+				if ( '' === $virtual_slug ) {
+					continue;
+				}
+				$slugs[] = $virtual_slug;
+			}
+		}
+
+		$slugs = array_values( array_unique( array_filter( $slugs ) ) );
+
+		if ( empty( $slugs ) ) {
 			return;
 		}
 
 		// Schedule regeneration which will invalidate and rebuild cache.
-		$this->cache->schedule_category_regeneration( $category_slug );
+		foreach ( $slugs as $slug ) {
+			$this->cache->schedule_category_regeneration( $slug );
+		}
 	}
 
 	/**

@@ -16,6 +16,7 @@
 namespace HtmlSitemapCategorized;
 
 // Load classes.
+require_once __DIR__ . '/includes/class-utils.php';
 require_once __DIR__ . '/includes/class-sitemap-cache.php';
 require_once __DIR__ . '/includes/class-html-sitemap.php';
 
