@@ -78,6 +78,32 @@ class Sitemap_Cache {
 	}
 
 	/**
+	 * Normalize category posts to expected structure.
+	 *
+	 * @param array<int, array<string, mixed>> $posts Posts data.
+	 * @return array<int, array<string, mixed>>
+	 */
+	protected function normalize_category_posts( array $posts ): array {
+		$sanitized = [];
+
+		foreach ( $posts as $post ) {
+			if ( ! isset( $post['ID'] ) ) {
+				continue;
+			}
+
+			$sanitized[] = [
+				'ID'            => (int) $post['ID'],
+				'post_title'    => isset( $post['post_title'] ) ? (string) $post['post_title'] : '',
+				'post_name'     => isset( $post['post_name'] ) ? (string) $post['post_name'] : '',
+				'post_date'     => isset( $post['post_date'] ) ? (string) $post['post_date'] : '',
+				'post_modified' => isset( $post['post_modified'] ) ? (string) $post['post_modified'] : '',
+			];
+		}
+
+		return $sanitized;
+	}
+
+	/**
 	 * Get post IDs for a specific category page (chunked for O(1) access).
 	 *
 	 * @param string $category_slug The category slug.
@@ -120,23 +146,32 @@ class Sitemap_Cache {
 		}
 
 		global $wpdb;
-		$post_ids = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-			$wpdb->prepare(
-				"SELECT p.ID
-				FROM {$wpdb->posts} p
-				INNER JOIN {$wpdb->term_relationships} tr ON p.ID = tr.object_id
-				INNER JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
-				INNER JOIN {$wpdb->terms} t ON tt.term_id = t.term_id
-				WHERE p.post_status = 'publish'
-				AND p.post_type = 'post'
-				AND tt.taxonomy = 'category'
-				AND t.slug = %s
-				ORDER BY p.post_date DESC, p.ID DESC",
-				$category_slug
-			)
-		);
+		$post_types    = Utils::get_supported_post_types();
+		$type_placeholders = implode( ',', array_fill( 0, count( $post_types ), '%s' ) );
+		$sql = "
+			SELECT p.ID
+			FROM {$wpdb->posts} p
+			INNER JOIN {$wpdb->term_relationships} tr ON p.ID = tr.object_id
+			INNER JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+			INNER JOIN {$wpdb->terms} t ON tt.term_id = t.term_id
+			WHERE p.post_status = 'publish'
+			AND p.post_type IN ($type_placeholders)
+			AND tt.taxonomy = 'category'
+			AND t.slug = %s
+			ORDER BY p.post_date DESC, p.ID DESC";
 
-		$post_ids = array_map( 'intval', $post_ids );
+		$params   = array_merge( $post_types, [ $category_slug ] );
+		$prepared = $wpdb->prepare( $sql, $params );
+		$post_ids = $wpdb->get_col( $prepared ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Prepared via $wpdb->prepare().
+
+		/**
+		 * Filters the ordered list of post IDs for a sitemap category.
+		 *
+		 * @param int[]  $post_ids      Post IDs ordered newest-first.
+		 * @param string $category_slug Category slug.
+		 */
+		$post_ids = apply_filters( 'html_sitemap_category_all_ids', $post_ids, $category_slug );
+		$post_ids = is_array( $post_ids ) ? array_map( 'intval', $post_ids ) : []; // @phpstan-ignore-line -- We're filtering, so checking just in case.
 
 		// Cache indefinitely - will be purged when posts change.
 		wp_cache_set( $cache_key, $post_ids, self::CACHE_GROUP );
@@ -168,6 +203,21 @@ class Sitemap_Cache {
 			'last_build'  => time(),
 		];
 
+		/**
+		 * Filters derived metadata for a sitemap category.
+		 *
+		 * @param array<string, mixed> $meta          Category metadata.
+		 * @param string               $category_slug Category slug.
+		 */
+		$meta = apply_filters( 'html_sitemap_category_meta', $meta, $category_slug );
+		if ( ! is_array( $meta ) ) { // @phpstan-ignore-line -- We're filtering, so checking just in case.
+			$meta = [
+				'total_posts' => $total_posts,
+				'total_pages' => $total_pages,
+				'last_build'  => time(),
+			];
+		}
+
 		wp_cache_set( $cache_key, $meta, self::CACHE_GROUP );
 
 		return $meta;
@@ -187,9 +237,12 @@ class Sitemap_Cache {
 		}
 
 		global $wpdb;
+		$post_types        = Utils::get_supported_post_types();
+		$type_placeholders = implode( ',', array_fill( 0, count( $post_types ), '%s' ) );
+
 		// Get category data with post counts.
-		$results = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-			"SELECT
+		$sql = "
+			SELECT
 				t.slug as category_slug,
 				t.name as category_name,
 				COUNT(p.ID) as post_count
@@ -199,11 +252,13 @@ class Sitemap_Cache {
 			INNER JOIN {$wpdb->posts} p ON tr.object_id = p.ID
 			WHERE tt.taxonomy = 'category'
 			AND p.post_status = 'publish'
-			AND p.post_type = 'post'
+			AND p.post_type IN ($type_placeholders)
 			GROUP BY t.term_id, t.slug, t.name
 			HAVING post_count > 0
-			ORDER BY t.name ASC"
-		);
+			ORDER BY t.name ASC";
+
+		$prepared = $wpdb->prepare( $sql, $post_types );
+		$results  = $wpdb->get_results( $prepared ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Prepared via $wpdb->prepare().
 
 		$categories = [];
 		foreach ( $results as $result ) {
@@ -223,6 +278,15 @@ class Sitemap_Cache {
 				];
 			}
 		}
+
+		/**
+		 * Filters the list of sitemap categories shown on the index page.
+		 *
+		 * @param array<int, array<string, mixed>> $categories Categories prepared for rendering.
+		 * @param string[]                         $post_types  Post types included in the sitemap.
+		 */
+		$categories = apply_filters( 'html_sitemap_categories', $categories, $post_types );
+		$categories = is_array( $categories ) ? array_values( $categories ) : []; // @phpstan-ignore-line -- We're filtering, so checking just in case.
 
 		// Categories change rarely; also invalidated on post changes.
 		wp_cache_set( $cache_key, $categories, self::CACHE_GROUP, DAY_IN_SECONDS );
@@ -244,6 +308,21 @@ class Sitemap_Cache {
 			return $cached;
 		}
 
+		/**
+		 * Filters category posts before the default query runs, allowing short-circuiting.
+		 *
+		 * @param array<int, array<string, mixed>>|null $posts         Null when filter runs pre-query.
+		 * @param string                                 $category_slug Category slug.
+		 * @param int                                    $page          Requested page.
+		 * @param string                                 $stage         Stage identifier ('pre').
+		 */
+		$prefilled = apply_filters( 'html_sitemap_category_posts', null, $category_slug, $page, 'pre' );
+		if ( is_array( $prefilled ) ) {
+			$normalized = $this->normalize_category_posts( $prefilled );
+			wp_cache_set( $cache_key, $normalized, self::CACHE_GROUP );
+			return $normalized;
+		}
+
 		// Get post IDs for this specific page (O(1) access).
 		$page_ids = $this->get_category_page_ids( $category_slug, $page );
 
@@ -256,9 +335,8 @@ class Sitemap_Cache {
 
 		$placeholders = implode( ',', array_fill( 0, count( $page_ids ), '%d' ) );
 		$sql          = "SELECT ID, post_title, post_name, post_date, post_modified FROM {$wpdb->posts} WHERE ID IN ($placeholders)";
-		$posts        = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-			$wpdb->prepare( $sql, $page_ids ) // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		);
+		$prepared     = $wpdb->prepare( $sql, ...$page_ids ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Placeholders expanded safely.
+		$posts        = $wpdb->get_results( $prepared ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 
 		/**
 		 * Reorder in PHP.
@@ -293,6 +371,18 @@ class Sitemap_Cache {
 			},
 			$posts
 		);
+
+		/**
+		 * Filters category posts after the default query completes.
+		 *
+		 * @param array<int, array<string, mixed>> $posts         Posts ready for rendering.
+		 * @param string                           $category_slug Category slug.
+		 * @param int                              $page          Requested page.
+		 * @param string                           $stage         Stage identifier ('post').
+		 */
+		$formatted_posts = apply_filters( 'html_sitemap_category_posts', $formatted_posts, $category_slug, $page, 'post' );
+		$formatted_posts = apply_filters( 'heavy_html_sitemap_category_posts', $formatted_posts, $category_slug, $page );
+		$formatted_posts = $this->normalize_category_posts( is_array( $formatted_posts ) ? $formatted_posts : [] );
 
 		wp_cache_set( $cache_key, $formatted_posts, self::CACHE_GROUP );
 		return $formatted_posts;
