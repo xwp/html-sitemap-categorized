@@ -5,7 +5,7 @@ class HTML_Sitemap {
 	/**
 	 * Plugin version used for asset cache-busting.
 	 */
-	const VERSION = '1.0.1';
+	const VERSION = '1.0.2';
 
 	/**
 	 * Query variable name for storing the sitemap category.
@@ -282,12 +282,23 @@ class HTML_Sitemap {
 				'label'    => __( 'Sitemap Index', 'html-sitemap-categorized' ),
 				'position' => 1,
 			];
+
+			/**
+			 * Filters breadcrumbs before adding the current category.
+			 * Allows adding intermediate breadcrumb levels.
+			 *
+			 * @param array  $breadcrumbs   Current breadcrumbs.
+			 * @param string $category_slug Category slug.
+			 * @param int    $page          Page number.
+			 */
+			$breadcrumbs = apply_filters( 'html_sitemap_breadcrumbs', $breadcrumbs, $category_slug, $page );
+
 			// Add current category as non-linked item.
 			$category_name = $this->get_category_name( $category_slug );
 			if ( ! empty( $category_name ) ) {
 				$breadcrumbs[] = [
 					'label'    => $category_name,
-					'position' => 2,
+					'position' => count( $breadcrumbs ) + 1,
 				];
 			}
 		}
@@ -406,6 +417,19 @@ class HTML_Sitemap {
 		$sitemap_page_num = (int) ( get_query_var( self::QUERY_VAR_PAGE ) ?: 1 );
 
 		if ( ! empty( $category_slug ) ) {
+			/**
+			 * Filters whether to use root template for a specific category slug.
+			 * Allows treating certain categories as indexes (showing subcategories) instead of post lists.
+			 *
+			 * @param bool   $use_root_template Whether to use root template (false = use category template).
+			 * @param string $category_slug     The category slug.
+			 */
+			$use_root_template = apply_filters( 'html_sitemap_use_root_template', false, $category_slug );
+
+			if ( $use_root_template ) {
+				return $this->get_root_template_data();
+			}
+
 			return $this->get_category_template_data( $category_slug, $sitemap_page_num );
 		} else {
 			return $this->get_root_template_data();

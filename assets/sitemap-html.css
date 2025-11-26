@@ -23,14 +23,14 @@
 	display: inline;
 }
 
-.l-sitemap .c-breadcrumbs__list li span::before,
+.l-sitemap .c-breadcrumbs__list li > span::before,
 .l-sitemap .c-breadcrumbs__list li a::before {
 	content: "\203A";
 	font-weight: 400;
 	padding-right: 0.4rem;
 }
 
-.l-sitemap .c-breadcrumbs__list li:first-child span::before,
+.l-sitemap .c-breadcrumbs__list li:first-child > span::before,
 .l-sitemap .c-breadcrumbs__list li:first-child a::before {
 	content: none;
 }
