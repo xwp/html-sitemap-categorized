@@ -71,7 +71,7 @@ class Video_Integration {
 	 * @return void
 	 */
 	private function register_filters(): void {
-		add_filter( 'html_sitemap_categories', [ $this, 'filter_root_categories' ], 10, 2 );
+		add_filter( 'html_sitemap_categories', [ $this, 'filter_root_categories' ], 999, 2 );
 		add_filter( 'html_sitemap_use_root_template', [ $this, 'use_root_template_for_videos' ], 10, 2 );
 		add_filter( 'html_sitemap_breadcrumbs', [ $this, 'filter_breadcrumbs' ], 10, 3 );
 		add_filter( 'html_sitemap_category_all_ids', [ $this, 'filter_all_ids' ], 10, 2 );
@@ -79,6 +79,12 @@ class Video_Integration {
 		add_filter( 'html_sitemap_category_posts', [ $this, 'filter_category_posts' ], 10, 4 );
 		add_filter( 'html_sitemap_category_name', [ $this, 'filter_category_name' ], 10, 3 );
 		add_action( 'transition_post_status', [ $this, 'handle_post_status_change' ], 10, 3 );
+		add_filter(
+			'html_sitemap_categories_cache_key',
+			[ $this, 'filter_categories_cache_key' ],
+			10,
+			2
+		);
 	}
 
 	/**
@@ -92,6 +98,22 @@ class Video_Integration {
 			'index.php?sitemap_category=videos&sitemap_page=1',
 			'top'
 		);
+	}
+
+	/**
+	 * Filter: Use a dedicated categories cache key for the videos index.
+	 *
+	 * @param string      $cache_key     Default cache key.
+	 * @param string|null $category_slug Current sitemap_category.
+	 *
+	 * @return string
+	 */
+	public function filter_categories_cache_key( string $cache_key, ?string $category_slug ): string {
+		if ( 'videos' === $category_slug ) {
+			return 'categories:videos';
+		}
+
+		return $cache_key;
 	}
 
 	/**
