@@ -5,7 +5,7 @@
  * Plugin Name: HTML Sitemap Categorized
  * Plugin URI: https://github.com/xwp/html-sitemap-categorized
  * Description: Category-based HTML sitemaps.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: XWP
  * Author URI: https://xwp.co
  * License: GPLv2+
