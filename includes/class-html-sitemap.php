@@ -5,7 +5,7 @@ class HTML_Sitemap {
 	/**
 	 * Plugin version used for asset cache-busting.
 	 */
-	const VERSION = '1.0.1';
+	const VERSION = '1.0.2';
 
 	/**
 	 * Query variable name for storing the sitemap category.
@@ -406,6 +406,19 @@ class HTML_Sitemap {
 		$sitemap_page_num = (int) ( get_query_var( self::QUERY_VAR_PAGE ) ?: 1 );
 
 		if ( ! empty( $category_slug ) ) {
+			/**
+			 * Filters whether to use root template for a specific category slug.
+			 * Allows treating certain categories as indexes (showing subcategories) instead of post lists.
+			 *
+			 * @param bool   $use_root_template Whether to use root template (false = use category template).
+			 * @param string $category_slug     The category slug.
+			 */
+			$use_root_template = apply_filters( 'html_sitemap_use_root_template', false, $category_slug );
+
+			if ( $use_root_template ) {
+				return $this->get_root_template_data();
+			}
+
 			return $this->get_category_template_data( $category_slug, $sitemap_page_num );
 		} else {
 			return $this->get_root_template_data();
