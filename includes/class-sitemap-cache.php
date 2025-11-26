@@ -229,8 +229,10 @@ class Sitemap_Cache {
 	 * @return array<array<string, mixed>> Array of category data.
 	 */
 	public function get_categories(): array {
-		$cache_key = 'categories';
-		$cached    = wp_cache_get( $cache_key, self::CACHE_GROUP );
+		// Use unique cache key per category index to prevent conflicts.
+		$category_slug = get_query_var( 'sitemap_category' );
+		$cache_key     = empty( $category_slug ) ? 'categories' : "categories:{$category_slug}";
+		$cached        = wp_cache_get( $cache_key, self::CACHE_GROUP );
 
 		if ( false !== $cached ) {
 			return $cached;

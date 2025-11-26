@@ -5,7 +5,7 @@
  * Plugin Name: HTML Sitemap Categorized
  * Plugin URI: https://github.com/xwp/html-sitemap-categorized
  * Description: Category-based HTML sitemaps.
- * Version: 1.0.2
+ * Version: 1.0.3
  * Author: XWP
  * Author URI: https://xwp.co
  * License: GPLv2+
@@ -19,6 +19,7 @@ namespace HtmlSitemapCategorized;
 require_once __DIR__ . '/includes/class-utils.php';
 require_once __DIR__ . '/includes/class-sitemap-cache.php';
 require_once __DIR__ . '/includes/class-html-sitemap.php';
+require_once __DIR__ . '/includes/class-video-integration.php';
 
 /**
  * Accessor for the plugin main instance.
@@ -33,6 +34,9 @@ function html_sitemap_categorized(): HTML_Sitemap {
 
 // Bootstrap the plugin.
 html_sitemap_categorized();
+
+// Initialize video integration if videos CPT exists.
+new Video_Integration();
 
 // Deactivation: clear scheduled regeneration jobs.
 register_deactivation_hook(
