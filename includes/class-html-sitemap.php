@@ -282,12 +282,23 @@ class HTML_Sitemap {
 				'label'    => __( 'Sitemap Index', 'html-sitemap-categorized' ),
 				'position' => 1,
 			];
+
+			/**
+			 * Filters breadcrumbs before adding the current category.
+			 * Allows adding intermediate breadcrumb levels.
+			 *
+			 * @param array  $breadcrumbs   Current breadcrumbs.
+			 * @param string $category_slug Category slug.
+			 * @param int    $page          Page number.
+			 */
+			$breadcrumbs = apply_filters( 'html_sitemap_breadcrumbs', $breadcrumbs, $category_slug, $page );
+
 			// Add current category as non-linked item.
 			$category_name = $this->get_category_name( $category_slug );
 			if ( ! empty( $category_name ) ) {
 				$breadcrumbs[] = [
 					'label'    => $category_name,
-					'position' => 2,
+					'position' => count( $breadcrumbs ) + 1,
 				];
 			}
 		}
