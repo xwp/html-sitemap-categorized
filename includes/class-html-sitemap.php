@@ -5,7 +5,7 @@ class HTML_Sitemap {
 	/**
 	 * Plugin version used for asset cache-busting.
 	 */
-	const VERSION = '1.0.2';
+	const VERSION = '1.0.3';
 
 	/**
 	 * Query variable name for storing the sitemap category.
@@ -44,13 +44,34 @@ class HTML_Sitemap {
 	public $cache;
 
 	/**
+	 * Whether hooks have already been registered.
+	 *
+	 * @var bool
+	 */
+	private bool $hooks_registered = false;
+
+	/**
 	 * Initialize the HTML sitemap functionality.
 	 */
 	public function __construct() {
 		// Initialize cache manager.
 		$this->cache = new Sitemap_Cache();
 
-		add_action( 'init', [ $this, 'add_rewrite_rules' ], 2 );
+		// Register all hooks on init so other integrations (e.g. videos CPT) can attach first.
+		add_action( 'init', [ $this, 'register_hooks' ], 2 );
+	}
+
+	/**
+	 * Register all WordPress hooks for the HTML sitemap.
+	 *
+	 * @return void
+	 */
+	public function register_hooks(): void {
+		if ( $this->hooks_registered ) {
+			return;
+		}
+
+		$this->add_rewrite_rules();
 		add_filter( 'query_vars', [ $this, 'register_query_vars' ] );
 		add_filter( 'template_include', [ $this, 'force_sitemap_template' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
@@ -64,6 +85,8 @@ class HTML_Sitemap {
 
 		// Hook into post status transitions (publish/unpublish) for targeted cache updates.
 		add_action( 'transition_post_status', [ $this, 'handle_post_status_change' ], 10, 3 );
+
+		$this->hooks_registered = true;
 	}
 
 	/**

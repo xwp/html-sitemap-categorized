@@ -230,7 +230,20 @@ class Sitemap_Cache {
 	 */
 	public function get_categories(): array {
 		$cache_key = 'categories';
-		$cached    = wp_cache_get( $cache_key, self::CACHE_GROUP );
+
+		/**
+		 * Filters the cache key used for sitemap categories listing.
+		 *
+		 * @param string      $cache_key     Default cache key.
+		 * @param string|null $category_slug Current sitemap_category query var.
+		 */
+		$cache_key = apply_filters(
+			'html_sitemap_categories_cache_key',
+			$cache_key,
+			get_query_var( 'sitemap_category' )
+		);
+
+		$cached = wp_cache_get( $cache_key, self::CACHE_GROUP );
 
 		if ( false !== $cached ) {
 			return $cached;
