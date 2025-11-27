@@ -17,6 +17,13 @@ namespace HtmlSitemapCategorized;
 class Video_Integration {
 
 	/**
+	 * Track whether hooks have been registered.
+	 *
+	 * @var bool
+	 */
+	private bool $hooks_registered = false;
+
+	/**
 	 * Video post type name.
 	 *
 	 * @var string
@@ -43,26 +50,33 @@ class Video_Integration {
 	 * @return void
 	 */
 	public function __construct() {
-
-		/**
-		 * Filters the video post type name.
-		 *
-		 * @param string $post_type_name Default: 'videos'.
-		 */
+		// Set names via filters.
 		$this->post_type_name = apply_filters( 'html_sitemap_video_post_type', 'videos' );
+		$this->taxonomy_name  = apply_filters( 'html_sitemap_video_taxonomy', 'video_category' );
 
-		/**
-		 * Filters the video taxonomy name.
-		 *
-		 * @param string $taxonomy_name Default: 'video_category'.
-		 */
-		$this->taxonomy_name = apply_filters( 'html_sitemap_video_taxonomy', 'video_category' );
-
-		// Add rewrite rule early (before it's needed).
+		// Add rewrite rule early (CPT not needed for this).
 		add_action( 'init', [ $this, 'add_rewrite_rules' ], 1 );
 
-		// Register filters immediately - they check internally if CPT exists.
+		// Defer filter registration until after CPTs are usually registered.
+		add_action( 'init', [ $this, 'maybe_register_filters' ], 20 );
+	}
+
+	/**
+	 * Register filters once, after CPT/taxonomy exist.
+	 *
+	 * @return void
+	 */
+	public function maybe_register_filters(): void {
+		if ( $this->hooks_registered ) {
+			return;
+		}
+
+		if ( ! $this->is_enabled() ) {
+			return;
+		}
+
 		$this->register_filters();
+		$this->hooks_registered = true;
 	}
 
 	/**
@@ -85,6 +99,15 @@ class Video_Integration {
 			10,
 			2
 		);
+	}
+
+	/**
+	 * Check if videos CPT and taxonomy are available.
+	 *
+	 * @return bool
+	 */
+	private function is_enabled(): bool {
+		return post_type_exists( $this->post_type_name ) && taxonomy_exists( $this->taxonomy_name );
 	}
 
 	/**
