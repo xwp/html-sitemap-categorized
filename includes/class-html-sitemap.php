@@ -183,10 +183,10 @@ class HTML_Sitemap {
 	/**
 	 * Set cache headers for HTML sitemap pages.
 	 *
-	 * @param array<string, string|null> $headers Current headers.
-	 * @return array<string, string|null> Modified headers.
+	 * @param ?array<string, string|null> $headers Current headers.
+	 * @return ?array<string, string|null> Modified headers.
 	 */
-	public function cache_headers( array $headers ): array {
+	public function cache_headers( ?array $headers ): ?array {
 		if ( true !== $this->is_sitemap_request() ) {
 			return $headers;
 		}
